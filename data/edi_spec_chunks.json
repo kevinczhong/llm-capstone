@@ -1,0 +1,187 @@
+[
+  {
+    "id": "edi_spec-chunk-0",
+    "text": "# EDI Implementation Guide: X12 850 Purchase Order to OMS JSON (v4.2)\n\n## Document Control\n\n| Property      | Value                                      |\n| ------------- | ------------------------------------------ |\n| Document ID   | TG-MAP-850-V4.2                            |\n| Project       | RetailGiant Global Integration             |\n| Source Format | ANSI X12 850 (Purchase Order) Version 4010 |\n| Target Format | TransactGlobal OMS JSON Schema v2.1        |\n| Author        | Integration Architecture Team              |\n| Last Updated  | October 24, 2025                           |\n| Status        | **APPROVED FOR PRODUCTION**                |",
+    "metadata": "EDI Implementation Guide: X12 850 Purchase Order to OMS JSON (v4.2)"
+  },
+  {
+    "id": "edi_spec-chunk-1",
+    "text": "[...] 24, 2025                           |\n| Status        | **APPROVED FOR PRODUCTION**                |\n\n---\n\n## Version History\n\n| Version | Date       | Author   | Description of Changes                                                    |\n| ------- | ---------- | -------- | ------------------------------------------------------------------------- |\n| 1.0     | 2024-01-15 | J. Doe   | Initial Draft.                                                            |\n| 1.5     | 2024-03-10 | M. Smith | Added detailed mapping for PID segments and extended loop logic.          |\n| 2.0     | 2024-06-22 | J. Doe   | Updated JSON target schema to v2.0; introduced shipTo object splitting.   |\n| 3.1     | 2024-09-05 | A. Patel | Added SDQ (Destination Quantity) segment logic for cross-dock orders.     |\n| 4.0     | 2024-12-01 | M. Smith | Major refactor of Allowance/Charge (SAC) logic for header vs. line level. |\n| 4.1     | 2025-05-15 | J. Doe   | Correction to Date/Time formatting ISO 8601 compliance rules.             |\n| 4.2     | 2025-10-24 | A. Patel | Final validations and inclusion of expanded error codes.                  |\n\n---",
+    "metadata": "Version History"
+  },
+  {
+    "id": "edi_spec-chunk-2",
+    "text": "[...] -10-24 | A. Patel | Final validations and inclusion of expanded error codes.                  |\n\n---\n\n---\n\n## 1. Introduction\n\n### 1.1 Purpose\n\nThis document serves as the authoritative mapping specification for the translation of inbound ANSI X12 850 Purchase Orders received from the trading partner (**RetailGiant**) into the internal JSON format required by the **TransactGlobal Order Management System (OMS)**. This specification is designed to be utilized by the middleware integration layer (MuleSoft / Tibco / Boomi) to govern the transformation logic.",
+    "metadata": "1. Introduction"
+  },
+  {
+    "id": "edi_spec-chunk-3",
+    "text": "[...] d by the middleware integration layer (MuleSoft / Tibco / Boomi) to govern the transformation logic.\n\n---\n\n### 1.2 Scope\n\nThe scope of this document includes:\n\n* **Data Transformation**: Field-level mapping from X12 segments/elements to JSON key-value pairs.\n* **Business Logic**: Conditional rules, data normalization, and lookup requirements.\n* **Validation**: Syntactic and semantic validation rules for incoming EDI data.\n* **Error Handling**: Procedures for malformed or non-compliant EDI transmissions.\n\nThis document excludes the outbound acknowledgment (997) process and the subsequent Invoice (810) or ASN (856) mapping specifications, which are detailed in separate documents.",
+    "metadata": "1.2 Scope"
+  },
+  {
+    "id": "edi_spec-chunk-4",
+    "text": "[...] sequent Invoice (810) or ASN (856) mapping specifications, which are detailed in separate documents.\n\n---\n\n### 1.3 Audience\n\n* **Integration Developers**: Implementing the mapping code.\n* **QA Engineers**: Creating test cases and validating output.\n* **Business Analysts**: Understanding how business requirements translate to technical specifications.\n* **Support Teams**: Troubleshooting production data issues.\n\n---",
+    "metadata": "1.3 Audience"
+  },
+  {
+    "id": "edi_spec-chunk-5",
+    "text": "[...] slate to technical specifications.\n* **Support Teams**: Troubleshooting production data issues.\n\n---\n\n---\n\n## 2. Technical Standards & Protocols\n\n### 2.1 EDI Envelope Specifications\n\nThe incoming file is expected to adhere to the standard ISA/GS enveloping structure. The translator must parse the envelope to extract routing information but generally does not map envelope data into the JSON business payload, except for Control Numbers used for tracking.\n\n* **Standard**: ANSI X12\n* **Version**: 004010\n* **Transaction Set**: 850 (Purchase Order)",
+    "metadata": "2. Technical Standards & Protocols"
+  },
+  {
+    "id": "edi_spec-chunk-6",
+    "text": "[...] racking.\n\n* **Standard**: ANSI X12\n* **Version**: 004010\n* **Transaction Set**: 850 (Purchase Order)\n\n---\n\n#### Delimiters\n\nThe parser must dynamically read delimiters from the ISA segment; the agreed defaults are:\n\n* **Segment Terminator**: `~`\n* **Element Separator**: `*`\n* **Sub-element Separator**: `>`",
+    "metadata": "Delimiters"
+  },
+  {
+    "id": "edi_spec-chunk-7",
+    "text": "[...] ts are:\n\n* **Segment Terminator**: `~`\n* **Element Separator**: `*`\n* **Sub-element Separator**: `>`\n\n---\n\n### 2.2 JSON Target Standards\n\n* **Encoding**: UTF-8\n* **Date Format**: ISO 8601 (`YYYY-MM-DDThh:mm:ssZ`)\n* **Number Format**: No leading zeros; max 4 decimal places. High-precision currency fields should be represented as strings.\n\n---",
+    "metadata": "2.2 JSON Target Standards"
+  },
+  {
+    "id": "edi_spec-chunk-8",
+    "text": "[...] g zeros; max 4 decimal places. High-precision currency fields should be represented as strings.\n\n---\n\n---\n\n## 3. General Business Rules\n\n### 3.1 Date and Time Conversion\n\n* **Input**: `CCYYMMDD` (DTM02)\n* **Output**: `YYYY-MM-DD`\n\n**Example**:\n\n* Input: `20251024`\n* Output: `2025-10-24`\n\n**Logic**:\n\n* If `DTM03` (time) is present, combine date and time.\n* If missing, default time to `00:00:00Z`.",
+    "metadata": "3. General Business Rules"
+  },
+  {
+    "id": "edi_spec-chunk-9",
+    "text": "[...] :\n\n* If `DTM03` (time) is present, combine date and time.\n* If missing, default time to `00:00:00Z`.\n\n---\n\n### 3.2 Address Parsing\n\n* The N1 loop provides address data.\n* Splitting logic is disabled in this version.\n* Map:\n\n  * `N301 \u2192 address.line1`\n  * `N302 \u2192 address.line2`\n\n### 3.3 Currency Normalization\n\n* Currency is derived from the `CUR` segment.\n* If missing, default currency is `USD`.\n* JSON output must populate `meta.currency`.\n\n---",
+    "metadata": "3.2 Address Parsing"
+  },
+  {
+    "id": "edi_spec-chunk-10",
+    "text": "[...] segment.\n* If missing, default currency is `USD`.\n* JSON output must populate `meta.currency`.\n\n---\n\n---\n\n## 4. Mapping Specifications: Header Level\n\n### 4.1 ISA \u2013 Interchange Control Header\n\n| Element | Description                | Target JSON Path                | Logic                  |\n| ------- | -------------------------- | ------------------------------- | ---------------------- |\n| ISA06   | Interchange Sender ID      | `meta.senderId`                 | Trim whitespace        |\n| ISA08   | Interchange Receiver ID    | `meta.receiverId`               | Trim whitespace        |\n| ISA13   | Interchange Control Number | `meta.interchangeControlNumber` | Preserve leading zeros |",
+    "metadata": "4. Mapping Specifications: Header Level"
+  },
+  {
+    "id": "edi_spec-chunk-11",
+    "text": "[...] | ISA13   | Interchange Control Number | `meta.interchangeControlNumber` | Preserve leading zeros |\n\n---\n\n### 4.2 GS \u2013 Functional Group Header\n\n| Element | Description          | Target JSON Path          | Logic                    |\n| ------- | -------------------- | ------------------------- | ------------------------ |\n| GS06    | Group Control Number | `meta.groupControlNumber` | Direct map               |\n| GS08    | Version / Release    | `meta.ediVersion`         | Validate equals `004010` |",
+    "metadata": "4.2 GS \u2013 Functional Group Header"
+  },
+  {
+    "id": "edi_spec-chunk-12",
+    "text": "[...] |\n| GS08    | Version / Release    | `meta.ediVersion`         | Validate equals `004010` |\n\n---\n\n### 4.3 ST \u2013 Transaction Set Header\n\n| Element | Description                 | Target JSON Path                | Logic          |\n| ------- | --------------------------- | ------------------------------- | -------------- |\n| ST01    | Transaction ID Code         | `meta.transactionType`          | Hardcode `850` |\n| ST02    | Transaction Set Control No. | `meta.transactionControlNumber` | Direct map     |",
+    "metadata": "4.3 ST \u2013 Transaction Set Header"
+  },
+  {
+    "id": "edi_spec-chunk-13",
+    "text": "[...] `850` |\n| ST02    | Transaction Set Control No. | `meta.transactionControlNumber` | Direct map     |\n\n---\n\n### 4.4 BEG \u2013 Beginning Segment for Purchase Order\n\n| Element | Description             | Target JSON Path  | Logic                                      |\n| ------- | ----------------------- | ----------------- | ------------------------------------------ |\n| BEG01   | Transaction Set Purpose | `order.type`      | 00\u2192ORIGINAL, 01\u2192CANCELLATION, 07\u2192DUPLICATE |\n| BEG02   | Purchase Order Type     | `order.category`  | DS\u2192DROPSHIP, SA\u2192STANDALONE, NE\u2192NEW_ORDER   |\n| BEG03   | Purchase Order Number   | `order.poNumber`  | Mandatory, trim, max 22                    |\n| BEG05   | PO Date                 | `order.orderDate` | Convert CCYYMMDD \u2192 YYYY-MM-DD              |",
+    "metadata": "4.4 BEG \u2013 Beginning Segment for Purchase Order"
+  },
+  {
+    "id": "edi_spec-chunk-14",
+    "text": "[...] BEG05   | PO Date                 | `order.orderDate` | Convert CCYYMMDD \u2192 YYYY-MM-DD              |\n\n---\n\n### 4.5 CUR \u2013 Currency (Conditional)\n\n| Element | Description   | Target JSON Path     | Logic                    |\n| ------- | ------------- | -------------------- | ------------------------ |\n| CUR02   | Currency Code | `order.currencyCode` | Default `USD` if missing |",
+    "metadata": "4.5 CUR \u2013 Currency (Conditional)"
+  },
+  {
+    "id": "edi_spec-chunk-15",
+    "text": "[...] -------------------- |\n| CUR02   | Currency Code | `order.currencyCode` | Default `USD` if missing |\n\n---\n\n### 4.6 REF \u2013 Reference Identification (Header)\n\nRepeatable segment. Mapping based on `REF01` qualifier:\n\n| Qualifier | Description            | Target JSON Path           | Logic                   |\n| --------- | ---------------------- | -------------------------- | ----------------------- |\n| VR        | Vendor Ref Number      | `order.vendorId`           | Direct map              |\n| DP        | Department Number      | `order.departmentId`       | Direct map              |\n| PD        | Promotion Deal ID      | `order.promotionId`        | Direct map              |\n| IA        | Internal Vendor Number | `order.internalVendorId`   | Direct map              |\n| ZZ        | Mutually Defined       | `order.customAttributes[]` | Append `{ key, value }` |",
+    "metadata": "4.6 REF \u2013 Reference Identification (Header)"
+  },
+  {
+    "id": "edi_spec-chunk-16",
+    "text": "[...] |\n| ZZ        | Mutually Defined       | `order.customAttributes[]` | Append `{ key, value }` |\n\n---\n\n### 4.7 PER \u2013 Administrative Communications Contact\n\n| Element | Description          | Target JSON Path            | Logic                   |\n| ------- | -------------------- | --------------------------- | ----------------------- |\n| PER02   | Name                 | `order.contact.name`        | Direct map              |\n| PER03   | Comm Qualifier       | N/A                         | Determines PER04 target |\n| PER04   | Communication Number | `order.contact.phone/email` | TE\u2192phone, EM\u2192email      |",
+    "metadata": "4.7 PER \u2013 Administrative Communications Contact"
+  },
+  {
+    "id": "edi_spec-chunk-17",
+    "text": "[...] target |\n| PER04   | Communication Number | `order.contact.phone/email` | TE\u2192phone, EM\u2192email      |\n\n---\n\n### 4.8 FOB \u2013 F.O.B. Related Instructions\n\n| Element | Description                | Target JSON Path         | Logic                  |\n| ------- | -------------------------- | ------------------------ | ---------------------- |\n| FOB01   | Shipment Method of Payment | `shipping.paymentMethod` | PP\u2192PREPAID, CC\u2192COLLECT |\n| FOB02   | Location Qualifier         | `shipping.fobPoint`      | ORIGIN / DESTINATION   |",
+    "metadata": "4.8 FOB \u2013 F.O.B. Related Instructions"
+  },
+  {
+    "id": "edi_spec-chunk-18",
+    "text": "[...] LLECT |\n| FOB02   | Location Qualifier         | `shipping.fobPoint`      | ORIGIN / DESTINATION   |\n\n---\n\n### 4.9 SAC \u2013 Allowance / Charge (Header)\n\nTarget JSON: `order.chargesAndAllowances[]`\n\n| Element | Description                | Target        | Logic                                |\n| ------- | -------------------------- | ------------- | ------------------------------------ |\n| SAC01   | Allowance/Charge Indicator | `type`        | A\u2192ALLOWANCE, C\u2192CHARGE                |\n| SAC02   | Service/Promo Code         | `code`        | Direct map                           |\n| SAC05   | Amount                     | `amount`      | Decimal                              |\n| SAC12   | Method                     | `method`      | 02\u2192OFF_INVOICE, 06\u2192CHARGE_TO_BE_PAID |\n| SAC15   | Description                | `description` | Direct map                           |",
+    "metadata": "4.9 SAC \u2013 Allowance / Charge (Header)"
+  },
+  {
+    "id": "edi_spec-chunk-19",
+    "text": "[...] ID |\n| SAC15   | Description                | `description` | Direct map                           |\n\n---\n\n### 4.10 N9 Loop (N1/N2/N3/N4) \u2013 Name and Address\n\nMapping based on `N101`:\n\n| Code | Description  | Target Object         |\n| ---- | ------------ | --------------------- |\n| ST   | Ship To      | `order.shipTo`        |\n| BT   | Bill To      | `order.billTo`        |\n| VN   | Vendor       | `order.vendorDetails` |\n| BY   | Buying Party | `order.buyer`         |\n\n---",
+    "metadata": "4.10 N9 Loop (N1/N2/N3/N4) \u2013 Name and Address"
+  },
+  {
+    "id": "edi_spec-chunk-20",
+    "text": "[...] | VN   | Vendor       | `order.vendorDetails` |\n| BY   | Buying Party | `order.buyer`         |\n\n---\n\n---\n\n## 5. Mapping Specifications: Detail Level (Line Items)\n\n### 5.1 PO1 \u2013 Baseline Item Data\n\nEach `PO1` creates a new `order.lines[]` entry.\n\n| Element | Description | Target       | Logic                      |\n| ------- | ----------- | ------------ | -------------------------- |\n| PO101   | Line Number | `lineNumber` | Integer                    |\n| PO102   | Quantity    | `quantity`   | Integer                    |\n| PO103   | UOM         | `uom`        | EA\u2192EACH, CA\u2192CASE, DZ\u2192DOZEN |\n| PO104   | Unit Price  | `unitPrice`  | Decimal                    |\n\n**Product ID Iteration**: Iterate qualifier/ID pairs.\n\n* UP \u2192 `upc`\n* VN \u2192 `vendorPartNumber`\n* BP \u2192 `buyerPartNumber`\n* EN \u2192 `ean`",
+    "metadata": "5. Mapping Specifications: Detail Level (Line Items)"
+  },
+  {
+    "id": "edi_spec-chunk-21",
+    "text": "[...] te qualifier/ID pairs.\n\n* UP \u2192 `upc`\n* VN \u2192 `vendorPartNumber`\n* BP \u2192 `buyerPartNumber`\n* EN \u2192 `ean`\n\n---\n\n### 5.2 PID \u2013 Product Description\n\n* Append `PID05` to `lines[].description`.\n* Special logic:\n\n  * `73` \u2192 color\n  * `74` \u2192 size\n\n### 5.3 PO4 \u2013 Item Physical Details\n\n| Element | Target      | Logic   |\n| ------- | ----------- | ------- |\n| PO401   | `packSize`  | Integer |\n| PO414   | `innerPack` | Integer |",
+    "metadata": "5.2 PID \u2013 Product Description"
+  },
+  {
+    "id": "edi_spec-chunk-22",
+    "text": "[...] -- | ----------- | ------- |\n| PO401   | `packSize`  | Integer |\n| PO414   | `innerPack` | Integer |\n\n---\n\n### 5.4 SAC \u2013 Allowance / Charge (Line)\n\nTarget JSON: `lines[].lineCharges[]` (same logic as header SAC).\n\n### 5.5 SLN \u2013 Sub-line Item Detail\n\nUsed for kits/assortments.\n\n| Element | Target              | Logic                |\n| ------- | ------------------- | -------------------- |\n| SLN01   | `components[].id`   | Direct map           |\n| SLN03   | `components[].type` | I\u2192Included, O\u2192Option |\n| SLN04   | `components[].qty`  | Integer              |\n| SLN09   | `components[].sku`  | Direct map           |\n\n---",
+    "metadata": "5.4 SAC \u2013 Allowance / Charge (Line)"
+  },
+  {
+    "id": "edi_spec-chunk-23",
+    "text": "[...] nents[].qty`  | Integer              |\n| SLN09   | `components[].sku`  | Direct map           |\n\n---\n\n---\n\n## 6. Mapping Specifications: Summary Level\n\n### 6.1 CTT \u2013 Transaction Totals\n\n| Element | Target                      | Logic                      |\n| ------- | --------------------------- | -------------------------- |\n| CTT01   | `meta.validation.lineCount` | Validate vs `lines.length` |\n| CTT02   | `meta.validation.hashTotal` | Optional quantity sum      |",
+    "metadata": "6. Mapping Specifications: Summary Level"
+  },
+  {
+    "id": "edi_spec-chunk-24",
+    "text": "[...] Validate vs `lines.length` |\n| CTT02   | `meta.validation.hashTotal` | Optional quantity sum      |\n\n---\n\n### 6.2 AMT \u2013 Monetary Amount\n\n| Element | Target              | Logic                             |\n| ------- | ------------------- | --------------------------------- |\n| AMT02   | `order.totalAmount` | Validate against calculated total |",
+    "metadata": "6.2 AMT \u2013 Monetary Amount"
+  },
+  {
+    "id": "edi_spec-chunk-25",
+    "text": "[...] ---------------------------- |\n| AMT02   | `order.totalAmount` | Validate against calculated total |\n\n---\n\n### 6.3 SE \u2013 Transaction Set Trailer\n\n| Element | Target                 | Logic                 |\n| ------- | ---------------------- | --------------------- |\n| SE01    | `segmentCount`         | Validate actual count |\n| SE02    | `trailerControlNumber` | Must match `ST02`     |\n\n---",
+    "metadata": "6.3 SE \u2013 Transaction Set Trailer"
+  },
+  {
+    "id": "edi_spec-chunk-26",
+    "text": "[...] | Validate actual count |\n| SE02    | `trailerControlNumber` | Must match `ST02`     |\n\n---\n\n---\n\n## 7. Code Reference Tables\n\n### Code List A \u2013 Transaction Purpose (BEG01)\n\n| X12 | Description      | Internal  |\n| --- | ---------------- | --------- |\n| 00  | Original         | ORIGINAL  |\n| 01  | Cancellation     | CANCEL    |\n| 04  | Change           | CHANGE    |\n| 07  | Duplicate        | DUPLICATE |\n| 22  | Information Copy | INFO_ONLY |",
+    "metadata": "7. Code Reference Tables"
+  },
+  {
+    "id": "edi_spec-chunk-27",
+    "text": "[...] | CHANGE    |\n| 07  | Duplicate        | DUPLICATE |\n| 22  | Information Copy | INFO_ONLY |\n\n---\n\n### Code List B \u2013 Unit of Measure (PO103)\n\n| X12 | Description | Internal |\n| --- | ----------- | -------- |\n| EA  | Each        | EACH     |\n| CA  | Case        | CASE     |\n| DZ  | Dozen       | DOZEN    |\n| KG  | Kilogram    | KG       |",
+    "metadata": "Code List B \u2013 Unit of Measure (PO103)"
+  },
+  {
+    "id": "edi_spec-chunk-28",
+    "text": "[...] |\n| CA  | Case        | CASE     |\n| DZ  | Dozen       | DOZEN    |\n| KG  | Kilogram    | KG       |\n\n---\n\n### Code List C \u2013 Address Types (N101)\n\n| X12 | Description | Internal |\n| --- | ----------- | -------- |\n| BT  | Bill To     | BILL_TO  |\n| ST  | Ship To     | SHIP_TO  |\n| BY  | Buyer       | BUYER    |\n\n---",
+    "metadata": "Code List C \u2013 Address Types (N101)"
+  },
+  {
+    "id": "edi_spec-chunk-29",
+    "text": "[...] T  | Bill To     | BILL_TO  |\n| ST  | Ship To     | SHIP_TO  |\n| BY  | Buyer       | BUYER    |\n\n---\n\n---\n\n## 8. Error Handling & Validation Logic\n\n* Strict validation enforced.\n* Missing critical data results in rejection and negative 997.\n\n### 8.1 Mandatory Fields\n\n* BEG03 (PO Number)\n* BEG05 (PO Date)\n* N1-ST Loop\n* PO102 (Quantity)\n* PO103 (UOM)\n* PO104 (Price, unless Sample order)",
+    "metadata": "8. Error Handling & Validation Logic"
+  },
+  {
+    "id": "edi_spec-chunk-30",
+    "text": "[...] * BEG05 (PO Date)\n* N1-ST Loop\n* PO102 (Quantity)\n* PO103 (UOM)\n* PO104 (Price, unless Sample order)\n\n---\n\n### 8.2 Logic Validations\n\n* **Duplicate Check**: BEG03 vs OMS.\n* **Date Validation**: Not future; not older than 365 days.\n* **Currency Match**: Must match vendor MDM config.\n\n### 8.3 Data Truncation Rules\n\n* Address lines: max 35 chars.\n* Item descriptions: max 100 chars, truncate with `...`.\n\n---",
+    "metadata": "8.2 Logic Validations"
+  },
+  {
+    "id": "edi_spec-chunk-31",
+    "text": "[...] Rules\n\n* Address lines: max 35 chars.\n* Item descriptions: max 100 chars, truncate with `...`.\n\n---\n\n---\n\n## 9. Appendix: Sample Artifacts\n\n### 9.1 Source EDI (X12 850)\n\n```text\nISA*00* *00* *ZZ*RETAILGIANT    *ZZ*TRANSACTGLOBAL *251024*1030*U*00401*000001005*0*P*>~\nGS*PO*RETAILGIANT*TRANSACTGLOBAL*20251024*1030*1005*X*004010~\nST*850*0001~\nBEG*00*SA*PO-99887766*20251024~\nCUR*SE*USD~\nREF*DP*055~\nREF*VR*112233~\nN1*ST*Seattle Distribution Center*92*0044~\nN3*1234 Rainier Ave S*Suite 400~\nN4*Seattle*WA*98144*US~\nN1*BY*RetailGiant HQ*91*RG-HQ-01~\nN3*5000 Commerce Blvd~\nN4*New York*NY*10001*US~\nPO1*1*100*EA*24.99*UP*123456789012*VN*TG-WIDGET-01*SK*SKU-555~\nPID*F****Premium Blue Widget~\nPO1*2*50*CA*120.00*UP*987654321098*VN*TG-GADGET-99~\nPID*F****Bulk Gadget Pack~\nCTT*2*150~\nSE*15*0001~\nGE*1*1005~\nIEA*1*000001005~\n```",
+    "metadata": "9. Appendix: Sample Artifacts"
+  },
+  {
+    "id": "edi_spec-chunk-32",
+    "text": "[...] 8*VN*TG-GADGET-99~\nPID*F****Bulk Gadget Pack~\nCTT*2*150~\nSE*15*0001~\nGE*1*1005~\nIEA*1*000001005~\n```\n\n---\n\n### 9.2 Target JSON Output\n\n```json\n{\n  \"meta\": {\n    \"senderId\": \"RETAILGIANT\",\n    \"receiverId\": \"TRANSACTGLOBAL\",\n    \"interchangeControlNumber\": \"000001005\",\n    \"groupControlNumber\": \"1005\",\n    \"ediVersion\": \"004010\",\n    \"transactionType\": \"850\",\n    \"transactionControlNumber\": \"0001\"\n  }\n}\n```\n\n---",
+    "metadata": "9.2 Target JSON Output"
+  },
+  {
+    "id": "edi_spec-chunk-33",
+    "text": "[...] sion\": \"004010\",\n    \"transactionType\": \"850\",\n    \"transactionControlNumber\": \"0001\"\n  }\n}\n```\n\n---\n\n---\n\n## 10. Advanced Mapping Scenarios\n\n### 10.1 Drop Ship Orders\n\n* Identified by `BEG02 = DS`.\n* Map `N1*ST` to `order.customer`.\n* PII must be encrypted if `PII_PROTECTION = true`.\n\n### 10.2 Cross-Dock (Mark-for) Logic\n\n* Use `N1*MA` or `SDQ` segments.\n* SDQ requires exploding a single PO1 into multiple JSON lines.",
+    "metadata": "10. Advanced Mapping Scenarios"
+  },
+  {
+    "id": "edi_spec-chunk-34",
+    "text": "[...] ic\n\n* Use `N1*MA` or `SDQ` segments.\n* SDQ requires exploding a single PO1 into multiple JSON lines.\n\n---\n\n### 10.3 Allowance and Charge Calculations\n\n* Net Price = Base \u2212 Allowances + Charges.\n* Allowances treated as negative amounts.\n\n---",
+    "metadata": "10.3 Allowance and Charge Calculations"
+  },
+  {
+    "id": "edi_spec-chunk-35",
+    "text": "[...] culations\n\n* Net Price = Base \u2212 Allowances + Charges.\n* Allowances treated as negative amounts.\n\n---\n\n---\n\n## 11. Glossary of Terms\n\n* **ANSI X12**: EDI standard\n* **Segment**: Line of EDI data\n* **Element**: Data point within a segment\n* **997 FA**: Functional Acknowledgment\n* **OMS**: Order Management System\n\n---",
+    "metadata": "11. Glossary of Terms"
+  },
+  {
+    "id": "edi_spec-chunk-36",
+    "text": "[...] int within a segment\n* **997 FA**: Functional Acknowledgment\n* **OMS**: Order Management System\n\n---\n\n---\n\n## 12. Implementation Checklist\n\n* [ ] Delimiter parsing verified\n* [ ] Loop limits tested\n* [ ] UTF-8 encoding validated\n* [ ] Date edge cases tested\n* [ ] Zero-quantity handling verified\n* [ ] JSON Schema v2.1 validation passed",
+    "metadata": "12. Implementation Checklist"
+  }
+]
