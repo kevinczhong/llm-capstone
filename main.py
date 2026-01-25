@@ -14,7 +14,11 @@ dense_index = pc.Index("edi-spec")
 langfuse = get_client()
 
 def search_docs(query, sentiment):
-  sentiment_k = int(sentiment * 100)
+  total_vectors = dense_index.describe_index_stats()['total_vector_count']
+  # print(total_vectors)
+  # sentiment_k = int(sentiment * 100)
+  sentiment_k = int(sentiment * int(total_vectors))
+  print(f"Searching with top_k = {sentiment_k}")
   results = dense_index.search(
       namespace= "850_PO_implementation",
       query={
